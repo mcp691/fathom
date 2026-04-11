@@ -217,7 +217,7 @@ def enum_subdomains(domain, dirs, args):
 
     # ffuf vhost/dns mode
     if tool_exists("ffuf"):
-        run(["ffuf", "-u", f"http://FUZZ.{domain}", "-w", wl,
+        run(["ffuf", "-u", f"http://{domain}", "-H", f"Host: FUZZ.{domain}", "-w", wl,
              "-o", str(dirs["dns"] / "ffuf_dns.json"),
              "-of", "json", "-t", "40", "-ac", "-mc", "200,204,301,302,307,401,403",],
             logfile=None)
