@@ -19,6 +19,7 @@ from pathlib import Path
 DEFAULT_PASS_WORDLIST  = "/usr/share/wordlists/rockyou.txt"
 DEFAULT_USER_WORDLIST  = "/usr/share/wordlists/metasploit/unix_users.txt"
 DEFAULT_DIR_WORDLIST   = "/usr/share/wordlists/dirb/common.txt"
+DEFAULT_RECURSE_DEPTH  = 2
 
 
 # ─────────────────────────────────────────────
@@ -144,6 +145,38 @@ def parse_nmap_xml(xml_file):
 # ─────────────────────────────────────────────
 
 # ── WEB ──────────────────────────────────────
+def _parse_gobuster_dirs(output):
+    """Return directory paths found in gobuster output (3xx responses only)."""
+    dirs = []
+    for line in output.splitlines():
+        line = line.strip()
+        if not line or "(Status:" not in line:
+            continue
+        parts = line.split()
+        if parts and "Status: 30" in line:
+            dirs.append(parts[0])
+    return dirs
+
+
+def _gobuster_recurse(url, wl, outdir, port, depth, visited=None):
+    """Run gobuster on url, then recurse into discovered directories."""
+    if visited is None:
+        visited = set()
+    url = url.rstrip("/")
+    if url in visited or depth < 0:
+        return
+    visited.add(url)
+
+    label = url.replace("://", "_").replace("/", "_").strip("_")[:60]
+    outfile = str(outdir / f"gobuster_{port}_{label}.txt")
+    _, output = run(["gobuster", "dir", "-u", url, "-w", wl,
+                     "-o", outfile, "-t", "40", "--no-error", "-q"])
+
+    if depth > 0:
+        for path in _parse_gobuster_dirs(output):
+            _gobuster_recurse(url + path, wl, outdir, port, depth - 1, visited)
+
+
 def enum_web(ip, port, dirs, args):
     proto = "https" if port == 443 or port == 8443 else "http"
     url   = f"{proto}://{ip}:{port}"
@@ -154,16 +187,18 @@ def enum_web(ip, port, dirs, args):
         run(["whatweb", "-a", "3", url],
             logfile=str(dirs["web"] / f"whatweb_{port}.txt"))
 
-    # gobuster / ffuf
-    wl = args.dir_wordlist
+    # gobuster / ffuf — with subdirectory recursion
+    wl    = args.dir_wordlist
+    depth = args.recurse_depth
     if tool_exists("ffuf"):
-        run(["ffuf", "-u", f"{url}/FUZZ", "-w", wl,
-             "-o", str(dirs["web"] / f"ffuf_{port}.json"),
-             "-of", "json", "-t", "40"])
+        cmd = ["ffuf", "-u", f"{url}/FUZZ", "-w", wl,
+               "-o", str(dirs["web"] / f"ffuf_{port}.json"),
+               "-of", "json", "-t", "40", "ac", "mc","200,204,301,302,307,401,403"]
+        if depth > 0:
+            cmd += ["-recursion", "-recursion-depth", str(depth)]
+        run(cmd)
     elif tool_exists("gobuster"):
-        run(["gobuster", "dir", "-u", url, "-w", wl,
-             "-o", str(dirs["web"] / f"gobuster_{port}.txt"),
-             "-t", "40", "--no-error", "-q"])
+        _gobuster_recurse(url, wl, dirs["web"], port, depth)
     else:
         log("Neither ffuf nor gobuster found — skipping dir brute-force", "WARN")
 
@@ -333,6 +368,9 @@ def parse_args():
     p.add_argument("--dir-wordlist", default=DEFAULT_DIR_WORDLIST,
         dest="dir_wordlist",
         help=f"Directory list for gobuster/ffuf\n(default: {DEFAULT_DIR_WORDLIST})")
+    p.add_argument("--recurse-depth", type=int, default=DEFAULT_RECURSE_DEPTH,
+        dest="recurse_depth",
+        help=f"Subdirectory recursion depth for ffuf/gobuster\n(default: {DEFAULT_RECURSE_DEPTH}, 0 = top-level only)")
     return p.parse_args()
 
 
@@ -350,6 +388,7 @@ def main():
     log(f"Target: {C.BOLD}{ip}{C.RESET}", "INFO")
     log(f"Output root: {dirs['root']}", "INFO")
     log(f"Brute-force: {'ENABLED' if args.brute else 'disabled (pass --brute to enable)'}", "INFO")
+    log(f"Dir recursion depth: {args.recurse_depth}", "INFO")
     print()
 
     # ── Phase 1: quick scan ──────────────────
