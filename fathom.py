@@ -215,24 +215,18 @@ def enum_subdomains(domain, dirs, args):
     log(f"Subdomain enumeration → {domain}", "INFO")
     wl = args.sub_wordlist
 
-    # gobuster dns
-    if tool_exists("gobuster"):
-        run(["gobuster", "dns", "-d", domain, "-w", wl,
-             "-o", str(dirs["dns"] / "gobuster_dns.txt"),
-             "-t", "40", "-q"],
-            logfile=None)
-
     # ffuf vhost/dns mode
-    elif tool_exists("ffuf"):
+    if tool_exists("ffuf"):
         run(["ffuf", "-u", f"http://FUZZ.{domain}", "-w", wl,
              "-o", str(dirs["dns"] / "ffuf_dns.json"),
              "-of", "json", "-t", "40", "-ac", "-mc", "200,204,301,302,307,401,403",],
             logfile=None)
-
-    # amass passive + active
-    if tool_exists("amass"):
-        run(["amass", "enum", "-d", domain, "-w", wl,
-             "-o", str(dirs["dns"] / "amass.txt")],
+    
+    # gobuster dns
+    elif tool_exists("gobuster"):
+        run(["gobuster", "dns", domain, "-w", wl,
+             "-o", str(dirs["dns"] / "gobuster_dns.txt"),
+             "-t", "40", "-q"],
             logfile=None)
 
     # subfinder
