@@ -19,6 +19,7 @@ from pathlib import Path
 DEFAULT_PASS_WORDLIST  = "/usr/share/wordlists/rockyou.txt"
 DEFAULT_USER_WORDLIST  = "/usr/share/wordlists/metasploit/unix_users.txt"
 DEFAULT_DIR_WORDLIST   = "/usr/share/wordlists/dirb/common.txt"
+DEFAULT_SUB_WORDLIST   = "/usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt"
 DEFAULT_RECURSE_DEPTH  = 2
 
 
@@ -87,6 +88,7 @@ def make_dirs(base, ip):
         "smb":   root / "smb",
         "ssh":   root / "ssh",
         "ftp":   root / "ftp",
+        "dns":   root / "dns",
     }
     for d in dirs.values():
         d.mkdir(parents=True, exist_ok=True)
@@ -411,6 +413,9 @@ def parse_args():
     p.add_argument("--recurse-depth", type=int, default=DEFAULT_RECURSE_DEPTH,
         dest="recurse_depth",
         help=f"Subdirectory recursion depth for ffuf/gobuster\n(default: {DEFAULT_RECURSE_DEPTH}, 0 = top-level only)")
+    p.add_argument("--sub-wordlist", default=DEFAULT_SUB_WORDLIST,
+        dest="sub_wordlist",
+        help=f"Subdomain wordlist for DNS brute-forcing\n(default: {DEFAULT_SUB_WORDLIST})")
     return p.parse_args()
 
 
@@ -452,7 +457,14 @@ def main():
         log("Deep XML parse failed — using quick scan results", "WARN")
         services = quick_services
 
-    # ── Phase 3: service enumeration ────────
+    # ── Phase 3: subdomain enumeration (domains only) ──
+    if is_domain(ip):
+        print()
+        log("Starting subdomain enumeration phase", "INFO")
+        print()
+        enum_subdomains(ip, dirs, args)
+
+    # ── Phase 4: service enumeration ────────
     print()
     log("Starting service enumeration phase", "INFO")
     print()
