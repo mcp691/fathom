@@ -193,7 +193,7 @@ def enum_web(ip, port, dirs, args):
     if tool_exists("ffuf"):
         cmd = ["ffuf", "-u", f"{url}/FUZZ", "-w", wl,
                "-o", str(dirs["web"] / f"ffuf_{port}.json"),
-               "-of", "json", "-t", "40", "-ac", "-mc","200,204,301,302,307,401,403"]
+               "-of", "json", "-t", "40", "-ac", "-mc", "200,204,301,302,307,401,403"]
         if depth > 0:
             cmd += ["-recursion", "-recursion-depth", str(depth)]
         run(cmd)
@@ -201,6 +201,46 @@ def enum_web(ip, port, dirs, args):
         _gobuster_recurse(url, wl, dirs["web"], port, depth)
     else:
         log("Neither ffuf nor gobuster found — skipping dir brute-force", "WARN")
+
+
+# ── DNS / SUBDOMAINS ─────────────────────────
+def is_domain(target):
+    """Return True if target looks like a hostname rather than a bare IP."""
+    import re
+    return not re.fullmatch(r"\d{1,3}(\.\d{1,3}){3}", target)
+
+def enum_subdomains(domain, dirs, args):
+    log(f"Subdomain enumeration → {domain}", "INFO")
+    wl = args.sub_wordlist
+
+    # gobuster dns
+    if tool_exists("gobuster"):
+        run(["gobuster", "dns", "-d", domain, "-w", wl,
+             "-o", str(dirs["dns"] / "gobuster_dns.txt"),
+             "-t", "40", "-q"],
+            logfile=None)
+
+    # ffuf vhost/dns mode
+    elif tool_exists("ffuf"):
+        run(["ffuf", "-u", f"http://FUZZ.{domain}", "-w", wl,
+             "-o", str(dirs["dns"] / "ffuf_dns.json"),
+             "-of", "json", "-t", "40", "-ac", "-mc", "200,204,301,302,307,401,403",],
+            logfile=None)
+
+    # amass passive + active
+    if tool_exists("amass"):
+        run(["amass", "enum", "-d", domain, "-w", wl,
+             "-o", str(dirs["dns"] / "amass.txt")],
+            logfile=None)
+
+    # subfinder
+    if tool_exists("subfinder"):
+        run(["subfinder", "-d", domain, "-w", wl,
+             "-o", str(dirs["dns"] / "subfinder.txt")],
+            logfile=None)
+
+    if not any(tool_exists(t) for t in ("gobuster", "ffuf", "amass", "subfinder")):
+        log("No subdomain enumeration tool found (gobuster/ffuf/amass/subfinder)", "WARN")
 
 
 # ── SMB ──────────────────────────────────────
