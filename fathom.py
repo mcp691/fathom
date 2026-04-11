@@ -193,7 +193,7 @@ def enum_web(ip, port, dirs, args):
     if tool_exists("ffuf"):
         cmd = ["ffuf", "-u", f"{url}/FUZZ", "-w", wl,
                "-o", str(dirs["web"] / f"ffuf_{port}.json"),
-               "-of", "json", "-t", "40", "ac", "mc","200,204,301,302,307,401,403"]
+               "-of", "json", "-t", "40", "-ac", "-mc","200,204,301,302,307,401,403"]
         if depth > 0:
             cmd += ["-recursion", "-recursion-depth", str(depth)]
         run(cmd)
