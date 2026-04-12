@@ -59,8 +59,9 @@ def run(cmd, logfile=None, shell=False):
         )
         lines = []
         for line in proc.stdout:
-            print(f"  {line}", end="")
-            lines.append(line)
+            if ":: Progress:" not in line:
+                print(f"  {line}", end="")
+                lines.append(line)
         proc.wait()
         if logfile:
             Path(logfile).parent.mkdir(parents=True, exist_ok=True)
@@ -193,7 +194,7 @@ def enum_web(ip, port, dirs, args):
     wl    = args.dir_wordlist
     depth = args.recurse_depth
     if tool_exists("ffuf"):
-        cmd = ["ffuf", "-u", f"{url}/FUZZ", "-w", wl,
+        cmd = ["ffuf", "-c", "-u", f"{url}/FUZZ", "-w", wl,
                "-o", str(dirs["web"] / f"ffuf_{port}.json"),
                "-of", "json", "-t", "40", "-ac", "-mc", "200,204,301,302,307,401,403"]
         if depth > 0:
@@ -217,7 +218,7 @@ def enum_subdomains(domain, dirs, args):
 
     # ffuf vhost/dns mode
     if tool_exists("ffuf"):
-        run(["ffuf", "-u", f"http://{domain}", "-H", f"Host: FUZZ.{domain}", "-w", wl,
+        run(["ffuf", "-c", "-u", f"http://{domain}", "-H", f"Host: FUZZ.{domain}", "-w", wl,
              "-o", str(dirs["dns"] / "ffuf_dns.json"),
              "-of", "json", "-t", "40", "-ac", "-mc", "200,204,301,302,307,401,403",],
             logfile=None)
