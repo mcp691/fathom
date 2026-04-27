@@ -18,7 +18,7 @@ from pathlib import Path
 # ─────────────────────────────────────────────
 DEFAULT_PASS_WORDLIST  = "/usr/share/wordlists/rockyou.txt"
 DEFAULT_USER_WORDLIST  = "/usr/share/wordlists/metasploit/unix_users.txt"
-DEFAULT_DIR_WORDLIST   = "/usr/share/wordlists/dirb/common.txt"
+DEFAULT_DIR_WORDLIST   = "/usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt"
 DEFAULT_SUB_WORDLIST   = "/usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt"
 DEFAULT_RECURSE_DEPTH  = 2
 
