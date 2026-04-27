@@ -197,8 +197,6 @@ def enum_web(ip, port, dirs, args):
         cmd = ["ffuf", "-c", "-u", f"{url}/FUZZ", "-w", wl,
                "-o", str(dirs["web"] / f"ffuf_{port}.json"),
                "-of", "json", "-t", "40", "-ac", "-mc", "200,204,301,302,307,401,403"]
-        if depth > 0:
-            cmd += ["-recursion", "-recursion-depth", str(depth)]
         run(cmd)
     elif tool_exists("gobuster"):
         _gobuster_recurse(url, wl, dirs["web"], port, depth)
